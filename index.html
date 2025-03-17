@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kiểm Tra IP, VPN, Tốc Độ Mạng</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+
+<button id="toggleDarkMode" class="btn btn-secondary">🌙 Chế độ tối</button>
+
+<script>
+    // Kiểm tra trạng thái Dark Mode đã lưu
+    if (localStorage.getItem("darkMode") === "enabled") {
+        document.body.classList.add("dark-mode");
+    }
+
+    document.getElementById("toggleDarkMode").addEventListener("click", function () {
+        document.body.classList.toggle("dark-mode");
+        if (document.body.classList.contains("dark-mode")) {
+            localStorage.setItem("darkMode", "enabled");
+        } else {
+            localStorage.setItem("darkMode", "disabled");
+        }
+    });
+</script>
+
+<style>
+    /* Dark Mode */
+    .dark-mode {
+        background-color: #121212;
+        color: white;
+    }
+    .dark-mode table {
+        color: white;
+    }
+</style>
+
+    <style>
+        body { background-color: #f4f4f4; }
+        .container { max-width: 600px; margin: auto; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
+        .loading { font-size: 14px; color: gray; text-align: center; }
+        #map { height: 300px; width: 100%; border-radius: 10px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="container mt-4">
+        <h2 class="text-center">📡 Kiểm Tra IP & Tốc Độ Mạng</h2>
+        <button class="btn btn-primary w-100 mt-3" onclick="getInfo()">🔍 Kiểm Tra Ngay</button>
+        <div id="info" class="mt-3"></div>
+        <div id="map"></div>
+    </div>
+
+<!-- Bảng hiển thị thông tin -->
+<table id="ipTable" class="table table-striped">
+    <thead>
+        <tr>
+            <th>Thông Tin</th>
+            <th>Chi Tiết</th>
+        </tr>
+    </thead>
+    <tbody id="infoTableBody"></tbody>
+</table>
+
+<!-- Thêm Bootstrap 5 & DataTables -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+
+<script>
+    function updateTable(data) {
+        let tableBody = document.getElementById("infoTableBody");
+        tableBody.innerHTML = `
+            <tr><td>Địa chỉ IP</td><td>${data.ip}</td></tr>
+            <tr><td>Nhà mạng</td><td>${data.org}</td></tr>
+            <tr><td>VPN/Proxy</td><td>${data.proxy ? "Có" : "Không"}</td></tr>
+            <tr><td>Tốc độ mạng</td><td>${data.speed} Mbps</td></tr>
+            <tr><td>Vị trí</td><td>${data.city}, ${data.country}</td></tr>
+        `;
+
+        // Kích hoạt DataTables
+        $('#ipTable').DataTable();
+    }
+
+    // Gọi API để lấy thông tin IP (thay thế bằng API phù hợp)
+    async function fetchIPInfo() {
+        let response = await fetch("https://ipapi.co/json/");
+        let data = await response.json();
+        data.speed = Math.random() * 100 + 10; // Giả lập tốc độ mạng
+        updateTable(data);
+    }
+
+    fetchIPInfo();
+</script>
+
+
+    <script>
+        function getInfo() {
+            let infoDiv = document.getElementById('info');
+            infoDiv.innerHTML = "<p class='loading'>⏳ Đang lấy thông tin...</p>";
+
+            fetch('https://ipapi.co/json/')
+                .then(response => response.json())
+                .then(data => {
+                    let vpnStatus = data.proxy ? "🛑 Có sử dụng VPN/Proxy" : "✅ Không sử dụng VPN/Proxy";
+                    let ipInfo = `
+                        <p><strong>📌 Địa chỉ IP:</strong> ${data.ip}</p>
+                        <p><strong>📡 Nhà mạng (ISP):</strong> ${data.org}</p>
+                        <p><strong>🌎 Quốc gia:</strong> ${data.country_name}</p>
+                        <p><strong>🏙️ Thành phố:</strong> ${data.city}</p>
+                        <p><strong>🕐 Múi giờ:</strong> ${data.timezone}</p>
+                        <p><strong>🔍 VPN/Proxy:</strong> ${vpnStatus}</p>
+                    `;
+                    infoDiv.innerHTML = ipInfo;
+
+                    // Hiển thị bản đồ
+                    loadMap(parseFloat(data.latitude), parseFloat(data.longitude));
+
+                    // Kiểm tra tốc độ mạng
+                    checkInternetSpeed(infoDiv);
+                })
+                .catch(() => {
+                    infoDiv.innerHTML = `<p class="text-danger">❌ Không thể lấy thông tin IP.</p>`;
+                });
+        }
+
+        // Tải bản đồ Google Maps
+        function loadMap(lat, lon) {
+            let map = new google.maps.Map(document.getElementById("map"), { center: { lat: lat, lng: lon }, zoom: 12 });
+            new google.maps.Marker({ position: { lat: lat, lng: lon }, map: map });
+        }
+
+        // Kiểm tra tốc độ mạng
+        function checkInternetSpeed(infoDiv) {
+            let startTime, endTime;
+            let testImage = new Image();
+            let imageSize = 1000000; // 1MB
+
+            testImage.onload = function () {
+                endTime = new Date().getTime();
+                let duration = (endTime - startTime) / 1000;
+                let speedMbps = ((imageSize * 8) / (duration * 1024 * 1024)).toFixed(2);
+                
+                infoDiv.innerHTML += `<p><strong>⚡ Tốc độ Download:</strong> ${speedMbps} Mbps</p>`;
+                checkUploadSpeed(infoDiv);
+            };
+
+            startTime = new Date().getTime();
+            testImage.src = "https://upload.wikimedia.org/wikipedia/commons/3/3a/Example.jpg?t=" + startTime;
+        }
+
+        // Kiểm tra tốc độ Upload
+        function checkUploadSpeed(infoDiv) {
+            let startTime, endTime;
+            let data = new Blob([new ArrayBuffer(500000)]); // 500KB
+            let formData = new FormData();
+            formData.append("file", data);
+
+            startTime = new Date().getTime();
+
+            fetch("https://www.google.com/", { method: "POST", body: formData })
+                .then(() => {
+                    endTime = new Date().getTime();
+                    let duration = (endTime - startTime) / 1000;
+                    let speedMbps = ((500000 * 8) / (duration * 1024 * 1024)).toFixed(2);
+                    
+                    infoDiv.innerHTML += `<p><strong>⬆️ Tốc độ Upload:</strong> ${speedMbps} Mbps</p>`;
+                })
+                .catch(() => {
+                    infoDiv.innerHTML += `<p><strong>⬆️ Tốc độ Upload:</strong> Không thể đo.</p>`;
+                });
+        }
+    </script>
+</style>
+
+
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>
+
+</body>
+</html>
